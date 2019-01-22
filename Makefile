@@ -50,3 +50,6 @@ docker-build: test
 # Push the docker image
 docker-push:
 	docker push ${IMG}
+
+binary:
+	go build -o bin/manager ./cmd/manager/main.go

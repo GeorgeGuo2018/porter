@@ -26,6 +26,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/magicsong/porter/pkg/bgp/apiutil"
 	api "github.com/osrg/gobgp/api"
 	"github.com/osrg/gobgp/pkg/packet/bgp"
 )
@@ -432,7 +433,14 @@ func NewPeerFromConfigStruct(pconf *Neighbor) *api.Peer {
 	if pconf.Transport.State.LocalAddress != "" {
 		localAddress = pconf.Transport.State.LocalAddress
 	}
-
+	remoteCap, err := apiutil.MarshalCapabilities(pconf.State.RemoteCapabilityList)
+	if err != nil {
+		return nil
+	}
+	localCap, err := apiutil.MarshalCapabilities(pconf.State.LocalCapabilityList)
+	if err != nil {
+		return nil
+	}
 	var removePrivateAs api.PeerConf_RemovePrivateAs
 	switch pconf.Config.RemovePrivateAs {
 	case REMOVE_PRIVATE_AS_OPTION_ALL:
@@ -487,6 +495,8 @@ func NewPeerFromConfigStruct(pconf *Neighbor) *api.Peer {
 			PeerType:        uint32(s.PeerType.ToInt()),
 			NeighborAddress: pconf.State.NeighborAddress,
 			Queues:          &api.Queues{},
+			RemoteCap:       remoteCap,
+			LocalCap:        localCap,
 			RouterId:        s.RemoteRouterId,
 		},
 		EbgpMultihop: &api.EbgpMultihop{

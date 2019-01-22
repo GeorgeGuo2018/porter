@@ -20,6 +20,7 @@ import (
 	"flag"
 	"os"
 
+	bgpserver "github.com/magicsong/porter/pkg/bgp/serverd"
 	"github.com/magicsong/porter/pkg/controller"
 	_ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -28,14 +29,28 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
 )
 
-func main() {
-	var metricsAddr string
+var bgpStartOption *bgpserver.StartOption
+var metricsAddr string
+
+func init() {
+	bgpStartOption = new(bgpserver.StartOption)
+	flag.StringVar(&bgpStartOption.ConfigFile, "f", "", "specifying a config file,required")
+	flag.StringVar(&bgpStartOption.ConfigType, "t", "toml", "specifying config type (toml, yaml, json)")
+	flag.StringVar(&bgpStartOption.GrpcHosts, "api-hosts", ":50051", "specify the hosts that gobgpd listens on")
+	flag.BoolVar(&bgpStartOption.GracefulRestart, "r", false, "flag restart-state in graceful-restart capability")
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
+
+}
+func main() {
 	flag.Parse()
 	logf.SetLogger(logf.ZapLogger(false))
 	log := logf.Log.WithName("entrypoint")
-
-	// Get a config to talk to the apiserver
+	//starting bgp server
+	log.Info("starting bgp server")
+	ready := make(chan interface{})
+	go bgpserver.Run(bgpStartOption, ready)
+	<-ready
+	log.Info("bgp server started successfully")
 	log.Info("setting up client for manager")
 	cfg, err := config.GetConfig()
 	if err != nil {

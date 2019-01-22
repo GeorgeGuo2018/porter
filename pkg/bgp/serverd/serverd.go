@@ -1,38 +1,65 @@
-package bgp
+//
+// Copyright (C) 2014-2017 Nippon Telegraph and Telephone Corporation.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+// implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package serverd
 
 import (
-	"context"
+	_ "net/http/pprof"
+	"os"
 	"os/signal"
+	"syscall"
 
-	api "github.com/osrg/gobgp/api"
-	gobgp "github.com/osrg/gobgp/pkg/server"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"github.com/magicsong/porter/pkg/bgp/config"
-	"github.com/osrg/gobgp/internal/pkg/table"
-
+	"github.com/magicsong/porter/pkg/bgp/table"
+	api "github.com/osrg/gobgp/api"
+	"github.com/osrg/gobgp/pkg/server"
+	log "github.com/sirupsen/logrus"
+	"golang.org/x/net/context"
+	"google.golang.org/grpc"
 )
-var bgpServer *gobgp.BgpServer
-func Serve() {
-	sigCh := make(chan os.Signal, 1)
+
+type StartOption struct {
+	ConfigFile      string `short:"f" long:"config-file" description:"specifying a config file"`
+	ConfigType      string `short:"t" long:"config-type" description:"specifying config type (toml, yaml, json)" default:"toml"`
+	GrpcHosts       string `long:"api-hosts" description:"specify the hosts that gobgpd listens on" default:":50051"`
+	GracefulRestart bool   `short:"r" long:"graceful-restart" description:"flag restart-state in graceful-restart capability"`
+}
+
+var bgpServer *server.BgpServer
+
+func GetServer() *server.BgpServer {
+	if bgpServer == nil {
+		log.Fatalln("BGP must start before using")
+	}
+	return bgpServer
+}
+func Run(opts *StartOption, ready chan<- interface{}) {
+	sigCh := make(chan os.Signal)
 	signal.Notify(sigCh, syscall.SIGTERM)
-	log := logf.Log.WithName("gobgpd")
-	var opts struct {
-		ConfigFile      string `short:"f" long:"config-file" description:"specifying a config file"`
-		ConfigType      string `short:"t" long:"config-type" description:"specifying config type (toml, yaml, json)" default:"toml"`
-	}
-	_, err := flags.Parse(&opts)
-	if err != nil {
-		os.Exit(1)
-	}
+	configCh := make(chan *config.BgpConfigSet)
+	maxSize := 256 << 20
+	grpcOpts := []grpc.ServerOption{grpc.MaxRecvMsgSize(maxSize), grpc.MaxSendMsgSize(maxSize)}
 
 	log.Info("gobgpd started")
-	bgpServer = gobgp.NewBgpServer()
+	bgpServer := server.NewBgpServer(server.GrpcListenAddress(opts.GrpcHosts), server.GrpcOption(grpcOpts))
 	go bgpServer.Serve()
-
-	log.Info("read configfile")
-	configCh := make(chan *config.BgpConfigSet)
+	if opts.ConfigFile == "" {
+		log.Fatalln("Configfile must be non-empty")
+	}
 	go config.ReadConfigfileServe(opts.ConfigFile, opts.ConfigType, configCh)
-
 	loop := func() {
 		var c *config.BgpConfigSet
 		for {
@@ -51,6 +78,43 @@ func Serve() {
 						Global: config.NewGlobalFromConfigStruct(&c.Global),
 					}); err != nil {
 						log.Fatalf("failed to set global config: %s", err)
+					}
+
+					if len(newConfig.Collector.Config.Url) > 0 {
+						log.Fatal("collector feature is not supported")
+					}
+
+					for _, c := range newConfig.RpkiServers {
+						if err := bgpServer.AddRpki(context.Background(), &api.AddRpkiRequest{
+							Address:  c.Config.Address,
+							Port:     c.Config.Port,
+							Lifetime: c.Config.RecordLifetime,
+						}); err != nil {
+							log.Fatalf("failed to set rpki config: %s", err)
+						}
+					}
+					for _, c := range newConfig.BmpServers {
+						if err := bgpServer.AddBmp(context.Background(), &api.AddBmpRequest{
+							Address:           c.Config.Address,
+							Port:              c.Config.Port,
+							Policy:            api.AddBmpRequest_MonitoringPolicy(c.Config.RouteMonitoringPolicy.ToInt()),
+							StatisticsTimeout: int32(c.Config.StatisticsTimeout),
+						}); err != nil {
+							log.Fatalf("failed to set bmp config: %s", err)
+						}
+					}
+					for _, c := range newConfig.MrtDump {
+						if len(c.Config.FileName) == 0 {
+							continue
+						}
+						if err := bgpServer.EnableMrt(context.Background(), &api.EnableMrtRequest{
+							DumpType:         int32(c.Config.DumpType.ToInt()),
+							Filename:         c.Config.FileName,
+							DumpInterval:     c.Config.DumpInterval,
+							RotationInterval: c.Config.RotationInterval,
+						}); err != nil {
+							log.Fatalf("failed to set mrt config: %s", err)
+						}
 					}
 					p := config.ConfigSetToRoutingPolicy(newConfig)
 					rp, err := table.NewAPIRoutingPolicyFromConfigStruct(p)
@@ -222,6 +286,7 @@ func Serve() {
 						log.Warn(err)
 					}
 				}
+				ready <- 0
 			}
 		}
 	}
