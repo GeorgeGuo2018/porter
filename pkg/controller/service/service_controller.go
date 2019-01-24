@@ -21,8 +21,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"golang.org/x/tools/godoc/util"
-
 	"github.com/magicsong/porter/pkg/bgp/routes"
 	"github.com/magicsong/porter/pkg/util"
 	"github.com/magicsong/porter/pkg/validate"
@@ -110,7 +108,7 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 	if err != nil {
 		if errors.IsNotFound(err) {
 			//service is deleted
-			if err := deleteLB(); err != nil {
+			if err := deleteLB(instance); err != nil {
 				return reconcile.Result{}, err
 			}
 			return reconcile.Result{}, nil
@@ -121,11 +119,11 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 	if len(instance.Status.LoadBalancer.Ingress) == 0 {
 		err := createLB(instance)
 		if err != nil {
-			log.Error(err, "Create LB for service failed", "Service Name", serv.GetName())
+			log.Error(err, "Create LB for service failed", "Service Name", instance.GetName())
 			return reconcile.Result{}, err
 		}
 		instance.Status.LoadBalancer.Ingress = append(instance.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
-			IP: serv.Spec.ExternalIPs[0],
+			IP: instance.Spec.ExternalIPs[0],
 		})
 	}
 	if !reflect.DeepEqual(instance.Status, origin.Status) {
@@ -148,10 +146,10 @@ func createLB(serv *corev1.Service) error {
 		return err
 	}
 	localip := util.GetOutboundIP()
-	if err := routes.AddRoute(ip, 24, localip, string(localip)); err != nil {
+	if err := routes.AddRoute(ip, 24, string(localip)); err != nil {
 		return err
 	}
-	//util.ExecIPRuleCommand("add",ip,"123")
+	//util.ExecIPRuleCommand("add", ip, "123")
 	return nil
 }
 func deleteLB(serv *corev1.Service) error {

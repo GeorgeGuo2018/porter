@@ -4,7 +4,7 @@ metadata:
   labels:
     control-plane: controller-manager
     controller-tools.k8s.io: "1.0"
-  name: system
+  name: porter-system
 ---
 apiVersion: v1
 kind: Service
@@ -41,6 +41,9 @@ spec:
         control-plane: controller-manager
         controller-tools.k8s.io: "1.0"
     spec:
+      hostNetwork: true
+      imagePullSecrets:
+        - name: pullkey
       containers:
       - command:
         - /manager
@@ -52,8 +55,11 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
-          - name: SECRET_NAME
-            value: $(WEBHOOK_SECRET_NAME)
+          # - name: SECRET_NAME
+          #   value: $(WEBHOOK_SECRET_NAME)
+        volumeMounts:
+        - name: config-bgp
+          mountPath: /etc/config
         resources:
           limits:
             cpu: 100m
@@ -61,23 +67,35 @@ spec:
           requests:
             cpu: 100m
             memory: 20Mi
-        ports:
-        - containerPort: 9876
-          name: webhook-server
-          protocol: TCP
-        volumeMounts:
-        - mountPath: /tmp/cert
-          name: cert
-          readOnly: true
+        # ports:
+        # - containerPort: 9876
+        #   name: webhook-server
+        #   protocol: TCP
+        # volumeMounts:
+        # - mountPath: /tmp/cert
+        #   name: cert
+        #   readOnly: true
       terminationGracePeriodSeconds: 10
       volumes:
-      - name: cert
-        secret:
-          defaultMode: 420
-          secretName: webhook-server-secret
+      # - name: cert
+      #   secret:
+      #     defaultMode: 420
+      #     secretName: webhook-server-secret
+      - name: config-bgp
+        configMap:
+          name: bgp-cfg
 ---
 apiVersion: v1
 kind: Secret
 metadata:
   name: webhook-server-secret
   namespace: system
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: pullkey
+data:
+  .dockerconfigjson:  ewoJImF1dGhzIjogewoJCSJkb2NrZXJodWIucWluZ2Nsb3VkLmNvbSI6IHsKCQkJImF1dGgiOiAiYldGbmFXTnpiMjVuT25OdmJtY3hNak54ZVE9PSIKCQl9LAoJCSJodHRwczovL2luZGV4LmRvY2tlci5pby92MS8iOiB7CgkJCSJhdXRoIjogImJXRm5hV056YjI1bk9uTnZibWN4TWpOa2IyTnJaWEk9IgoJCX0KCX0sCgkiSHR0cEhlYWRlcnMiOiB7CgkJIlVzZXItQWdlbnQiOiAiRG9ja2VyLUNsaWVudC8xOC4wMy4xLWNlIChsaW51eCkiCgl9Cn0K
+type: kubernetes.io/dockerconfigjson

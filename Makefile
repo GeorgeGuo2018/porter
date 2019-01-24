@@ -1,6 +1,6 @@
 
 # Image URL to use all building/pushing image targets
-IMG ?= controller:latest
+IMG ?= porter:0.0.1
 
 all: test manager
 
@@ -9,7 +9,7 @@ test: generate fmt vet manifests
 	go test ./pkg/... ./cmd/... -coverprofile cover.out
 
 # Build manager binary
-manager: generate fmt vet
+manager: fmt vet
 	go build -o bin/manager github.com/magicsong/porter/cmd/manager
 
 # Run against the configured Kubernetes cluster in ~/.kube/config
@@ -53,3 +53,6 @@ docker-push:
 
 binary:
 	go build -o bin/manager ./cmd/manager/main.go
+
+debug:
+	./hack/debug.sh

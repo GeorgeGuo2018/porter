@@ -9,7 +9,7 @@ import (
 	api "github.com/osrg/gobgp/api"
 )
 
-func toAPIPath(ip string, prefix int, nexthop string) *api.Path {
+func toAPIPath(ip string, prefix uint32, nexthop string) *api.Path {
 	nlri, _ := ptypes.MarshalAny(&api.IPAddressPrefix{
 		Prefix:    ip,
 		PrefixLen: prefix,
@@ -27,8 +27,33 @@ func toAPIPath(ip string, prefix int, nexthop string) *api.Path {
 		Pattrs: attrs,
 	}
 }
-func AddRoute(ip string, prefix int, nexthop string) error {
+
+func isRouteAdded(ip string, prefix uint32, nexthop string) bool {
+	lookup := &api.TableLookupPrefix{
+		Prefix: ip,
+	}
+	listPathRequest := &api.ListPathRequest{
+		TableType: api.TableType_GLOBAL,
+		Family:    &api.Family{Afi: api.Family_AFI_IP, Safi: api.Family_SAFI_UNICAST},
+		Prefixes:  []*api.TableLookupPrefix{lookup},
+	}
+	var result bool
+	fn := func(d *api.Destination) {
+		if len(d.Paths) > 0 {
+			result = true
+		}
+	}
+	err := bgp.GetServer().ListPath(context.Background(), listPathRequest, fn)
+	if err != nil {
+		panic(err)
+	}
+	return result
+}
+func AddRoute(ip string, prefix uint32, nexthop string) error {
 	s := bgp.GetServer()
+	if !isRouteAdded(ip, prefix, nexthop) {
+		return nil
+	}
 	apipath := toAPIPath(ip, prefix, nexthop)
 	_, err := s.AddPath(context.Background(), &api.AddPathRequest{
 		Path: apipath,
@@ -36,11 +61,10 @@ func AddRoute(ip string, prefix int, nexthop string) error {
 	return err
 }
 
-func deleteRoute(ip string, prefix int, nexthop string) error {
+func deleteRoute(ip string, prefix uint32, nexthop string) error {
 	s := bgp.GetServer()
 	apipath := toAPIPath(ip, prefix, nexthop)
-	_, err := s.DeletePath(context.Background(), &api.DeletePathRequest{
+	return s.DeletePath(context.Background(), &api.DeletePathRequest{
 		Path: apipath,
 	})
-	return err
 }

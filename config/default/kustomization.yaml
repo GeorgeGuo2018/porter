@@ -1,13 +1,6 @@
 # Adds namespace to all resources.
 namespace: porter-system
 
-# Value of this field is prepended to the
-# names of all resources, e.g. a deployment named
-# "wordpress" becomes "alices-wordpress".
-# Note that it should also match with the prefix (text before '-') of the namespace
-# field above.
-namePrefix: porter-
-
 # Labels to add to all resources and selectors.
 #commonLabels:
 #  someName: someValue
@@ -28,6 +21,12 @@ resources:
 - ../rbac/auth_proxy_role.yaml
 - ../rbac/auth_proxy_role_binding.yaml
 
+configMapGenerator:
+- name: bgp-cfg
+  files:
+  - ../bgp/config.toml
+generatorOptions:
+  disableNameSuffixHash: true
 patches:
 - manager_image_patch.yaml
   # Protect the /metrics endpoint by putting it behind auth.
@@ -40,7 +39,6 @@ patches:
   # Only one of manager_auth_proxy_patch.yaml and
   # manager_prometheus_metrics_patch.yaml should be enabled.
 #- manager_prometheus_metrics_patch.yaml
-
 vars:
 - name: WEBHOOK_SECRET_NAME
   objref:
