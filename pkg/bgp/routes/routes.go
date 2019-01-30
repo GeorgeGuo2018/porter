@@ -10,16 +10,17 @@ import (
 	api "github.com/osrg/gobgp/api"
 	log "github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
+	"golang.org/x/sys/unix"
 )
 
-var MainLink netlink.Link
+var mainLink netlink.Link
 
 func init() {
 	link, err := netlink.LinkByName("eth0")
 	if err != nil {
 		panic(err)
 	}
-	MainLink = link
+	mainLink = link
 }
 func toAPIPath(ip string, prefix uint32, nexthop string) *api.Path {
 	nlri, _ := ptypes.MarshalAny(&api.IPAddressPrefix{
@@ -86,9 +87,10 @@ func AddVIP(ip string, prefix uint32) error {
 		return err
 	}
 	if isAddrExist(addr) {
+		log.Info("detect vip in eth0, creating vip skipped")
 		return nil
 	}
-	return netlink.AddrAdd(MainLink, addr)
+	return netlink.AddrAdd(mainLink, addr)
 }
 
 func DeleteVIP(ip string, prefix uint32) error {
@@ -100,11 +102,11 @@ func DeleteVIP(ip string, prefix uint32) error {
 		log.Info("detect no vip in eth0, deleting vip skipped")
 		return nil
 	}
-	return netlink.AddrDel(MainLink, addr)
+	return netlink.AddrDel(mainLink, addr)
 }
 
 func isAddrExist(find *netlink.Addr) bool {
-	addrs, err := netlink.AddrList(MainLink, 1)
+	addrs, err := netlink.AddrList(mainLink, unix.AF_INET)
 	if err != nil {
 		log.Errorf("Failed to get addrs of link,err:%s", err.Error())
 		return false

@@ -55,10 +55,9 @@ binary:
 	go build -o bin/manager ./cmd/manager/main.go
 
 debug:
-	./hack/debug.sh
-
-debug-local: binary
-	./bin/manager -f config/bgp/config.toml
+	./hack/debug_in_cluster.sh
+debug-out-of-cluster:
+	./hack/debug_out_cluster.sh
 
 debug-log:
 	kubectl logs -f -n porter-system controller-manager-0 -c manager
