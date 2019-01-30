@@ -59,3 +59,6 @@ debug:
 
 debug-local: binary
 	./bin/manager -f config/bgp/config.toml
+
+debug-log:
+	kubectl logs -f -n porter-system controller-manager-0 -c manager

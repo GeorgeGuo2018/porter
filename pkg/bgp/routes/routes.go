@@ -6,10 +6,21 @@ import (
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/any"
 	bgp "github.com/magicsong/porter/pkg/bgp/serverd"
+	"github.com/magicsong/porter/pkg/util"
 	api "github.com/osrg/gobgp/api"
 	log "github.com/sirupsen/logrus"
+	"github.com/vishvananda/netlink"
 )
 
+var MainLink netlink.Link
+
+func init() {
+	link, err := netlink.LinkByName("eth0")
+	if err != nil {
+		panic(err)
+	}
+	MainLink = link
+}
 func toAPIPath(ip string, prefix uint32, nexthop string) *api.Path {
 	nlri, _ := ptypes.MarshalAny(&api.IPAddressPrefix{
 		Prefix:    ip,
@@ -67,4 +78,41 @@ func deleteRoute(ip string, prefix uint32, nexthop string) error {
 	return s.DeletePath(context.Background(), &api.DeletePathRequest{
 		Path: apipath,
 	})
+}
+
+func AddVIP(ip string, prefix uint32) error {
+	addr, err := netlink.ParseAddr(util.ToCommonString(ip, prefix))
+	if err != nil {
+		return err
+	}
+	if isAddrExist(addr) {
+		return nil
+	}
+	return netlink.AddrAdd(MainLink, addr)
+}
+
+func DeleteVIP(ip string, prefix uint32) error {
+	addr, err := netlink.ParseAddr(util.ToCommonString(ip, prefix))
+	if err != nil {
+		return err
+	}
+	if !isAddrExist(addr) {
+		log.Info("detect no vip in eth0, deleting vip skipped")
+		return nil
+	}
+	return netlink.AddrDel(MainLink, addr)
+}
+
+func isAddrExist(find *netlink.Addr) bool {
+	addrs, err := netlink.AddrList(MainLink, 1)
+	if err != nil {
+		log.Errorf("Failed to get addrs of link,err:%s", err.Error())
+		return false
+	}
+	for _, addr := range addrs {
+		if addr.Equal(*find) {
+			return true
+		}
+	}
+	return false
 }

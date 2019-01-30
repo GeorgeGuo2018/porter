@@ -50,6 +50,9 @@ spec:
         image: controller:latest
         imagePullPolicy: Always
         name: manager
+        securityContext:
+          capabilities:
+            add: ["NET_ADMIN", "SYS_TIME"]
         env:
           - name: POD_NAMESPACE
             valueFrom:

@@ -194,19 +194,29 @@ func createLB(serv *corev1.Service) error {
 		return err
 	}
 	localip := util.GetOutboundIP()
-	if err := routes.AddRoute(ip, 24, localip); err != nil {
+	if err := routes.AddRoute(ip, 32, localip); err != nil {
 		return err
 	}
 	//util.ExecIPRuleCommand("add", ip, "123")
 	log.Info("Routed added successful", "ServiceName", serv.Name, "Namespace", serv.Namespace)
-	if !routes.IsRouteAdded(ip, 32) {
-		panic("IsRouteAdded is false")
+	if err := routes.AddVIP(ip, 32); err != nil {
+		log.Error(err, "Failed to create vip")
+		return err
 	}
+	log.Info("VIP added successful", "ServiceName", serv.Name, "Namespace", serv.Namespace)
 	return nil
 }
 
 func deleteLB(serv *corev1.Service) error {
+	ip, err := getExternalIP(serv)
+	if err != nil {
+		return err
+	}
 	log.Info("Routed deleted successful", "ServiceName", serv.Name, "Namespace", serv.Namespace)
+	if err := routes.DeleteVIP(ip, 32); err != nil {
+		return err
+	}
+	log.Info("VIP deleted successful", "ServiceName", serv.Name, "Namespace", serv.Namespace)
 	return nil
 }
 

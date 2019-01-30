@@ -3,10 +3,10 @@ apiVersion: v1
 metadata:
   name:  mylbapp
   annotations:
-    lb.kubesphere.io/v1apha1: port
+    lb.kubesphere.io/v1apha1: porter
 spec:
   externalIPs:
-  - 139.198.121.145
+  - 139.198.121.228
   selector:
     app:  mylbapp
   type:  LoadBalancer 
