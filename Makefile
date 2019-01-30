@@ -56,3 +56,6 @@ binary:
 
 debug:
 	./hack/debug.sh
+
+debug-local: binary
+	./bin/manager -f config/bgp/config.toml

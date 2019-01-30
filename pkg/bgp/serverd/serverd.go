@@ -54,7 +54,7 @@ func Run(opts *StartOption, ready chan<- interface{}) {
 	grpcOpts := []grpc.ServerOption{grpc.MaxRecvMsgSize(maxSize), grpc.MaxSendMsgSize(maxSize)}
 
 	log.Info("gobgpd started")
-	bgpServer := server.NewBgpServer(server.GrpcListenAddress(opts.GrpcHosts), server.GrpcOption(grpcOpts))
+	bgpServer = server.NewBgpServer(server.GrpcListenAddress(opts.GrpcHosts), server.GrpcOption(grpcOpts))
 	go bgpServer.Serve()
 	if opts.ConfigFile == "" {
 		log.Fatalln("Configfile must be non-empty")

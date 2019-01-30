@@ -7,6 +7,7 @@ import (
 	"github.com/golang/protobuf/ptypes/any"
 	bgp "github.com/magicsong/porter/pkg/bgp/serverd"
 	api "github.com/osrg/gobgp/api"
+	log "github.com/sirupsen/logrus"
 )
 
 func toAPIPath(ip string, prefix uint32, nexthop string) *api.Path {
@@ -28,7 +29,7 @@ func toAPIPath(ip string, prefix uint32, nexthop string) *api.Path {
 	}
 }
 
-func isRouteAdded(ip string, prefix uint32, nexthop string) bool {
+func IsRouteAdded(ip string, prefix uint32) bool {
 	lookup := &api.TableLookupPrefix{
 		Prefix: ip,
 	}
@@ -39,9 +40,7 @@ func isRouteAdded(ip string, prefix uint32, nexthop string) bool {
 	}
 	var result bool
 	fn := func(d *api.Destination) {
-		if len(d.Paths) > 0 {
-			result = true
-		}
+		result = true
 	}
 	err := bgp.GetServer().ListPath(context.Background(), listPathRequest, fn)
 	if err != nil {
@@ -51,7 +50,8 @@ func isRouteAdded(ip string, prefix uint32, nexthop string) bool {
 }
 func AddRoute(ip string, prefix uint32, nexthop string) error {
 	s := bgp.GetServer()
-	if !isRouteAdded(ip, prefix, nexthop) {
+	if IsRouteAdded(ip, prefix) {
+		log.Infoln("Detect route is exsiting ")
 		return nil
 	}
 	apipath := toAPIPath(ip, prefix, nexthop)

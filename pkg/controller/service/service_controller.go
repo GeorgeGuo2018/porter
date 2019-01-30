@@ -44,6 +44,10 @@ import (
  */
 var log = logf.Log.WithName("lb-controller")
 
+const (
+	FinalizerName string = "finalizer.lb.kubesphere.io/v1apha1"
+)
+
 // Add creates a new Service Controller and adds it to the Manager with default RBAC. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
@@ -107,14 +111,17 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 	err := r.Get(context.TODO(), request.NamespacedName, instance)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			//service is deleted
-			if err := deleteLB(instance); err != nil {
-				return reconcile.Result{}, err
-			}
 			return reconcile.Result{}, nil
 		}
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, err
+	}
+	needReconile, err := r.useFinalizerIfNeeded(instance)
+	if err != nil {
+		return reconcile.Result{Requeue: true}, err
+	}
+	if needReconile {
+		return reconcile.Result{}, nil
 	}
 	if len(instance.Status.LoadBalancer.Ingress) == 0 {
 		err := createLB(instance)
@@ -125,11 +132,53 @@ func (r *ReconcileService) Reconcile(request reconcile.Request) (reconcile.Resul
 		instance.Status.LoadBalancer.Ingress = append(instance.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
 			IP: instance.Spec.ExternalIPs[0],
 		})
+	} else {
+		if !checkLB(instance) {
+			log.Info("Detect ingress IP, however no route exsit in gbp, maybe due to the restart of controller")
+			err = createLB(instance)
+			if err != nil {
+				log.Error(err, "Create LB for service failed", "Service Name", instance.GetName())
+				return reconcile.Result{}, err
+			}
+		}
 	}
 	if !reflect.DeepEqual(instance.Status, origin.Status) {
 		r.Client.Status().Update(context.Background(), instance)
 	}
 	return reconcile.Result{}, nil
+}
+
+func (r *ReconcileService) useFinalizerIfNeeded(serv *corev1.Service) (bool, error) {
+	if serv.ObjectMeta.DeletionTimestamp.IsZero() {
+		// The object is not being deleted, so if it does not have our finalizer,
+		// then lets add the finalizer and update the object.
+		if !util.ContainsString(serv.ObjectMeta.Finalizers, FinalizerName) {
+			serv.ObjectMeta.Finalizers = append(serv.ObjectMeta.Finalizers, FinalizerName)
+			if err := r.Update(context.Background(), serv); err != nil {
+				return false, err
+			}
+			log.Info("Append Finalizer to service", "ServiceName", serv.Name, "Namespace", serv.Namespace)
+			return true, nil
+		}
+	} else {
+		// The object is being deleted
+		if util.ContainsString(serv.ObjectMeta.Finalizers, FinalizerName) {
+			// our finalizer is present, so lets handle our external dependency
+			if err := deleteLB(serv); err != nil {
+				// if fail to delete the external dependency here, return with error
+				// so that it can be retried
+				return false, err
+			}
+
+			// remove our finalizer from the list and update it.
+			serv.ObjectMeta.Finalizers = util.RemoveString(serv.ObjectMeta.Finalizers, FinalizerName)
+			if err := r.Update(context.Background(), serv); err != nil {
+				return true, nil
+			}
+			log.Info("Remove Finalizer before service deleted", "ServiceName", serv.Name, "Namespace", serv.Namespace)
+		}
+	}
+	return false, nil
 }
 
 func getExternalIP(serv *corev1.Service) (string, error) {
@@ -142,16 +191,30 @@ func getExternalIP(serv *corev1.Service) (string, error) {
 func createLB(serv *corev1.Service) error {
 	ip, err := getExternalIP(serv)
 	if err != nil {
-
 		return err
 	}
 	localip := util.GetOutboundIP()
-	if err := routes.AddRoute(ip, 24, string(localip)); err != nil {
+	if err := routes.AddRoute(ip, 24, localip); err != nil {
 		return err
 	}
 	//util.ExecIPRuleCommand("add", ip, "123")
+	log.Info("Routed added successful", "ServiceName", serv.Name, "Namespace", serv.Namespace)
+	if !routes.IsRouteAdded(ip, 32) {
+		panic("IsRouteAdded is false")
+	}
 	return nil
 }
+
 func deleteLB(serv *corev1.Service) error {
+	log.Info("Routed deleted successful", "ServiceName", serv.Name, "Namespace", serv.Namespace)
 	return nil
+}
+
+func checkLB(serv *corev1.Service) bool {
+	ip, err := getExternalIP(serv)
+	if err != nil {
+		log.Error(err, "Failed to get ip")
+		return false
+	}
+	return routes.IsRouteAdded(ip, 32)
 }
