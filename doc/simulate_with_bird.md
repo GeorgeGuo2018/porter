@@ -71,14 +71,14 @@
     14:24:16.656750 IP 139.198.254.4.1397 > 139.198.121.228.omniorb: Flags [S], seq 1471601642, win 64240, options [mss 1394,nop,wscale 8,sackOK,TS val 532484351 ecr 0], length 0
 
     ```
-    上述输入中，`139.198.121.228`是绑定的ip，左边即上层路由器的地址。获取到这个地址之后，通过路由策略配置回去的规则：
+    上述打印输出中，`139.198.121.228`是绑定的ip，左边即上层路由器的地址。获取到这个地址之后，通过路由策略配置回去的规则：
     ```bash
     sudo ip rule add to 139.198.254.0/24 lookup 101 #返回这个ip的包走路由表101
     sudo ip route replace default via dev eth1 table 101 #路由表101的默认网卡是eth1
     ```
     实际物理路由器不需要配置上述规则，因为路由器管理员知道如何正确配置这个ip。
 
-9. 这样模拟交换机就配置完成了，可以执行`birdc show protocol`查看连接信息。
+9. 这样模拟路由器就配置完成了，可以执行`birdc show protocol`查看连接信息。
 
 # 配置插件
 > 所有的操作都在k8s集群的主节点中
@@ -88,7 +88,7 @@
     wget https://github.com/magicsong/porter/releases/download/v0.0.1/release.yaml
     ```
 2. 修改yaml文件中的configmap `bgp-cfg`，请按照<https://github.com/magicsong/porter/blob/master/doc/simulate_with_bird.md>配置这个文件，并且需要和刚才模拟器配置相对应。
-3. 配置公网ip回路。和模拟路由器的问题一致，公网ip导流至集群中之后，ip包发出默认都是eth0，eth0会将此包丢弃，需要将此ip包导向模拟路由器。
+3. 配置公网ip回路规则。和模拟路由器的问题一致，公网ip导流至集群中之后，ip包发出默认都是eth0，eth0会将此包丢弃，需要将此ip包导向模拟路由器。
     ```bash
     sudo ip rule add to 139.198.254.0/24 lookup 101 #返回这个ip的包走路由表101
     sudo ip route replace default via 192.168.98.5 dev eth0 table 101 #路由表101的默认网卡是192.168.98.5这个模拟路由器
