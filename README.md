@@ -3,16 +3,19 @@
 
 # Porter
 
-`Porter`是一款用于物理机部署的kubernetes的服务暴露插件，是[Kubesphere](https://kubesphere.io/)的一个子项目。
+`Porter`是一款用于物理机部署kubernetes的服务暴露插件，是[Kubesphere](https://kubesphere.io/)的一个子项目。
 
 ## 工作原理
 
-该插件部署在集群中时，会与集群的边界路由器（三层交换机）建立BGP连接。每当集群中创建了带有特定注记的服务时，就会为该服务动态分配EIP，将EIP以辅助IP的形式绑定在Controller所在的节点主网卡上，然后创建路由，通过BGP将路由传导到公网（私网）中，使得外部能够访问这个服务。
+该插件部署在集群中时，会与集群的边界路由器（三层交换机）建立BGP连接。每当集群中创建了带有特定注记的服务时，就会为该服务动态分配EIP，EIP将以辅助IP的形式绑定在Controller所在的节点主网卡上，然后创建路由，BGP将路由传导到公网（私网）中，使得外部能够访问这个服务。
 
 ## 如何使用
 
 1. 在物理部署的k8s集群上部署
 2. [在青云上用模拟路由器的方式开始](https://github.com/magicsong/porter/blob/master/doc/simulate_with_bird.md)
+
+## 物理架构
+![architecture](https://github.com/magicsong/porter/blob/master/doc/img/architecture.png)
 
 ## 从代码构建新的插件
 
