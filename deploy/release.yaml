@@ -159,6 +159,8 @@ spec:
         control-plane: controller-manager
         controller-tools.k8s.io: "1.0"
     spec:
+      nodeSelector:
+        dedicated: master
       containers:
       - args:
         - --secure-listen-address=0.0.0.0:8443

@@ -42,6 +42,8 @@ spec:
         controller-tools.k8s.io: "1.0"
     spec:
       hostNetwork: true
+      nodeSelector:
+        dedicated: master
       imagePullSecrets:
         - name: pullkey
       containers:

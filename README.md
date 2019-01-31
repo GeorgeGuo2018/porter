@@ -12,7 +12,7 @@
 ## 如何使用
 
 1. 在物理部署的k8s集群上部署
-2. 在青云上用模拟路由器的方式开始
+2. [在青云上用模拟路由器的方式开始](https://github.com/magicsong/porter/blob/master/doc/simulate_with_bird.md)
 
 ## 从代码构建新的插件
 
