@@ -10,8 +10,10 @@ echo "Docker image build done, try to push to registry"
 docker push $IMG
 echo "updating kustomize image patch file for manager resource"
 sed -i'' -e 's@image: .*@image: '"${IMG}"'@' ./config/default/manager_image_patch.yaml
+dockerconfig=`cat ~/.docker/config.json | base64 -w 0`
+sed -i -e 's/dockerconfigjson:.*/dockerconfigjson: $dockerconfig/' ./config/default/manager_secret_patch.yaml
 echo "Deploying for test"
-kustomize build config/default -o release.yaml
-kubectl apply -f release.yaml
+kustomize build config/default -o deploy/release.yaml
+kubectl apply -f deploy/release.yaml
 kubectl delete pod controller-manager-0 -n porter-system
 echo "Done! Let's roll"

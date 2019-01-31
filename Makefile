@@ -41,12 +41,6 @@ vet:
 generate:
 	go generate ./pkg/... ./cmd/...
 
-# Build the docker image
-docker-build: test
-	docker build . -t ${IMG}
-	@echo "updating kustomize image patch file for manager resource"
-	sed -i'' -e 's@image: .*@image: '"${IMG}"'@' ./config/default/manager_image_patch.yaml
-
 # Push the docker image
 docker-push:
 	docker push ${IMG}
@@ -61,3 +55,6 @@ debug-out-of-cluster:
 
 debug-log:
 	kubectl logs -f -n porter-system controller-manager-0 -c manager
+
+clean-up:
+	 docker rmi $(docker images | grep "magicsong/porter" | awk '{print $3}') 

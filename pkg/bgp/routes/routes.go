@@ -63,7 +63,7 @@ func IsRouteAdded(ip string, prefix uint32) bool {
 func AddRoute(ip string, prefix uint32, nexthop string) error {
 	s := bgp.GetServer()
 	if IsRouteAdded(ip, prefix) {
-		log.Infoln("Detect route is exsiting ")
+		log.Infoln("Detect route is existing ")
 		return nil
 	}
 	apipath := toAPIPath(ip, prefix, nexthop)
