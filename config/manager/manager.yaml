@@ -87,6 +87,7 @@ spec:
       - name: config-bgp
         configMap:
           name: bgp-cfg
+
 ---
 apiVersion: v1
 kind: Secret

@@ -11,3 +11,22 @@
 
 ## 如何使用
 
+1. 在物理部署的k8s集群上部署
+2. 在青云上用模拟路由器的方式开始
+
+## 从代码构建新的插件
+
+### 软件需求
+1. go 1.11，插件使用了[gobgp](https://github.com/osrg/gobgp)创建BGP服务端，gobgp需要go 1.11
+2. docker，无版本限制
+3. kustomize，插件使用了kustomize动态生成集群所需的k8s yaml文件
+4. 插件会推送到远端仓库，需要提前执行`docker login`
+
+### 步骤
+1. `git clone https://github.com/magicsong/porter.git`, 进入代码目录 
+2. `dep ensure --vendor-only`拉取依赖
+3. 按照上面教程的要求修改config.toml (位于`config/bgp/`下） 
+4. （optional）根据自己需要修改代码
+5. （optional）根据自己的需求修改镜像的参数（位于`config/manager`下）
+6. 修改Makefile中的IMG名称，然后`make release`，最终的yaml文件在`deploy`目录下
+7. `kubectl apply -f deploy/release.yaml` 部署插件

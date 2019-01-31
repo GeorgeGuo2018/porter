@@ -1,6 +1,6 @@
 
 # Image URL to use all building/pushing image targets
-IMG ?= porter:0.0.1
+IMG ?= magicsong/porter:0.0.1
 
 all: test manager
 
@@ -57,4 +57,8 @@ debug-log:
 	kubectl logs -f -n porter-system controller-manager-0 -c manager
 
 clean-up:
-	 docker rmi $(docker images | grep "magicsong/porter" | awk '{print $3}') 
+	docker rmi $(docker images | grep "magicsong/porter" | awk '{print $3}') 
+
+release: fmt vet
+	./hack/deploy.sh ${IMG}
+	@echo "Done, the yaml is in deploy folder named 'release.yaml'"
