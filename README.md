@@ -31,7 +31,7 @@
 6. 修改Makefile中的IMG名称，然后`make release`，最终的yaml文件在`deploy`目录下
 7. `kubectl apply -f deploy/release.yaml` 部署插件
 
-## Licensing
+## 开源许可
 
 **Porter** is licensed under the Apache License, Version 2.0. See
 [LICENSE](https://github.com/magicsong/porter/blob/master/LICENSE) for the full
