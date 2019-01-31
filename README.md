@@ -19,8 +19,8 @@
 ### 软件需求
 1. go 1.11，插件使用了[gobgp](https://github.com/osrg/gobgp)创建BGP服务端，gobgp需要go 1.11
 2. docker，无版本限制
-3. kustomize，插件使用了kustomize动态生成集群所需的k8s yaml文件
-4. 插件会推送到远端仓库，需要提前执行`docker login`
+3. kustomize，插件使用了[kustomize](https://github.com/kubernetes-sigs/kustomize/blob/master/docs/INSTALL.md)动态生成集群所需的k8s yaml文件
+4. 如果插件会推送到远端私有仓库，需要提前执行`docker login`
 
 ### 步骤
 1. `git clone https://github.com/magicsong/porter.git`, 进入代码目录 
@@ -30,3 +30,9 @@
 5. （optional）根据自己的需求修改镜像的参数（位于`config/manager`下）
 6. 修改Makefile中的IMG名称，然后`make release`，最终的yaml文件在`deploy`目录下
 7. `kubectl apply -f deploy/release.yaml` 部署插件
+
+## Licensing
+
+**Porter** is licensed under the Apache License, Version 2.0. See
+[LICENSE](https://github.com/magicsong/porter/blob/master/LICENSE) for the full
+license text.
